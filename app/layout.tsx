@@ -1,5 +1,6 @@
 import type React from 'react';
 import type { Metadata } from 'next';
+import type { Viewport } from 'next/types'; // <-- ADD THIS IMPORT
 import Script from 'next/script';
 
 import { Space_Mono } from 'next/font/google';
@@ -17,11 +18,20 @@ const spaceMono = Space_Mono({
   variable: '--font-space-mono',
 });
 
+// Define Viewport here
+export const viewport: Viewport = { // <-- ADD THIS EXPORT BLOCK
+  themeColor: '#0F0F0F',
+  // You might want to define other viewport properties here, e.g.:
+  // width: 'device-width',
+  // initialScale: 1,
+  // userScalable: 'no',
+};
+
 export const metadata: Metadata = {
   title: 'Lightning PoS',
   description: 'Point of Sale System with Lightning Network',
   manifest: '/manifest.json',
-  themeColor: '#0F0F0F',
+  // themeColor: '#0F0F0F', // <-- REMOVE THIS LINE from here
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
@@ -61,7 +71,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name='msapplication-config' content='/browserconfig.xml' />
         <meta name='msapplication-TileColor' content='#0F0F0F' />
         <meta name='msapplication-tap-highlight' content='no' />
+        {/* If you add `themeColor` to `viewport` export, you can remove this duplicate meta tag too. */}
         <meta name='theme-color' content='#0F0F0F' />
+        {/* If you add `width`, `initialScale`, `userScalable` to `viewport` export, you can remove this too. */}
         <meta name='viewport' content='width=device-width, initial-scale=1, user-scalable=no' />
 
         <link rel='apple-touch-icon' href='/iso.svg?height=180&width=180' />
@@ -72,34 +84,17 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <Script src={`https://www.googletagmanager.com/gtag/js?id=${process.env.NEXT_PUBLIC_GOOGLE_TAG_ID}`} />
         <Script id='google-analytics'>
           {`
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){dataLayer.push(arguments);}
-        gtag('js', new Date());
-      
-        gtag('config', '${process.env.NEXT_PUBLIC_GOOGLE_TAG_ID}');
-      `}
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${process.env.NEXT_PUBLIC_GOOGLE_TAG_ID}');
+          `}
         </Script>
       </head>
       <body className={`flex flex-col min-h-[100dvh] ${spaceMono.className} select-none`}>
         <InjectedNFCProvider>{children}</InjectedNFCProvider>
         <Toaster />
-        {/* <script
-          dangerouslySetInnerHTML={{
-            __html: `
-              if ('serviceWorker' in navigator) {
-                window.addEventListener('load', function() {
-                  navigator.serviceWorker.register('/sw.js')
-                    .then(function(registration) {
-                      console.log('SW registered: ', registration);
-                    })
-                    .catch(function(registrationError) {
-                      console.log('SW registration failed: ', registrationError);
-                    });
-                });
-              }
-            `,
-          }}
-        /> */}
+        {/* The commented-out service worker script is fine and not the cause. */}
       </body>
     </html>
   );

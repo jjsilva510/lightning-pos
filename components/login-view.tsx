@@ -9,7 +9,6 @@ import { useLightningAuth } from '@/hooks/use-lightning-auth';
 
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { PWAInstallBanner } from '@/components/pwa-install-banner';
 import { LoadingSpinner } from '@/components/ui/loading-spinner';
 
 export function LoginView() {
@@ -92,7 +91,6 @@ export function LoginView() {
       </div>
 
       <div className='w-full max-w-md mx-auto px-4 space-y-4'>
-        <PWAInstallBanner />
         <div className='space-y-3'>
           <Input
             type='email'
@@ -136,10 +134,6 @@ export function LoginView() {
         {/* <div className='text-center'>
           <span className='text-gray-500'>or</span>
         </div>
-
-        <Button variant='outline' className='w-full' size='lg' asChild>
-          <Link href='/app'>Try Now</Link>
-        </Button> */}
 
         <Button className='w-full' variant='link' size='lg' asChild>
           <Link href='/'>Back to Home</Link>

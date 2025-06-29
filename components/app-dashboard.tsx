@@ -8,7 +8,6 @@ import { useLightningAuth } from '@/hooks/use-lightning-auth';
 
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { JoinCloud } from '@/components/join-cloud';
 
 export function AppDashboard() {
   const router = useRouter();
@@ -36,6 +35,16 @@ export function AppDashboard() {
       color: 'bg-blue-500',
       status: 'ACTIVE',
     },
+    // If you had a "Cloud" card here in the array, you would remove it too.
+    // e.g.,
+    // {
+    //   title: 'Cloud',
+    //   description: 'Sync your store across devices',
+    //   icon: Cloud,
+    //   href: '/waitlist',
+    //   color: 'bg-orange-500',
+    //   status: 'DISABLED', // or 'SOON'
+    // },
   ];
 
   return (
@@ -67,9 +76,6 @@ export function AppDashboard() {
           </Button>
         </div>
       </header>
-
-      <div className='flex flex-col gap-4 w-full max-w-md mx-auto p-4'>
-        {process.env.NODE_ENV === 'development' && <JoinCloud />}
 
         {/* Main Content */}
         <div className='flex-1 flex flex-col gap-4'>
@@ -147,7 +153,6 @@ export function AppDashboard() {
             })}
           </div>
         </div>
-      </div>
     </div>
   );
 }
