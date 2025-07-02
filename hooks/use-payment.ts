@@ -1,3 +1,4 @@
+// hooks/use-payment.ts
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
@@ -6,9 +7,10 @@ import { useSettings } from '@/hooks/use-settings';
 import { useLightningAuth } from '@/hooks/use-lightning-auth';
 import { extractPaymentHash } from '@/lib/lightning-utils';
 
+// FIX: Ensure these imports match your actual utility functions
 import { convertToSatoshis, generateLightningInvoice, verifyLightningPayment } from '@/lib/lightning-utils';
 
-interface UsePayment {
+interface UsePaymentOptions {
   lnaddress: string;
   onComplete: () => void;
 }
@@ -21,11 +23,11 @@ export type Product = {
 
 const INTERVAL_MS = 3000; // 3 seconds
 
-export const usePayment = ({ lnaddress, onComplete }: UsePayment) => {
+export const usePayment = ({ lnaddress, onComplete }: UsePaymentOptions) => {
   const [lightningInvoice, setLightningInvoice] = useState<string | null>(null);
   const [verifyUrl, setVerifyUrl] = useState<string | null>(null);
   const [paymentHash, setPaymentHash] = useState<string | null>(null);
-  const [amountInSats, setAmountInSats] = useState<number | null>(null);
+  const [amountInSats, setAmountInSats] = useState<number | null>(null); // Keep as number | null for initial state
   const [isGenerating, setIsGenerating] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,11 +35,24 @@ export const usePayment = ({ lnaddress, onComplete }: UsePayment) => {
   const { lightningAddress, isAuthenticated } = useLightningAuth();
 
   const generatePayment = useCallback(
-    async (amount: number, cart: { id: string; quantity: number }[] = [], products: Product[] = []) => {
+    // FIX: Add a new parameter `isAmountInSats` to indicate if `amount` is already in satoshis
+    async (
+      amount: number, // This 'amount' can now be either fiat or sats
+      cart: { id: string; quantity: number }[] = [],
+      products: Product[] = [],
+      isAmountPreConvertedToSats: boolean = false // Defaults to false (meaning needs conversion)
+    ) => {
       setIsGenerating(true);
       setError(null);
       setVerifyUrl(null);
       setPaymentHash(null);
+      setAmountInSats(null); // Clear previous amount in sats
+
+      if (!settings?.currency) { // Ensure settings.currency is available
+        setError('Currency settings not loaded.');
+        setIsGenerating(false);
+        return;
+      }
 
       if (!lightningAddress && !lnaddress) {
         setError('Lightning Address not configured');
@@ -46,38 +61,36 @@ export const usePayment = ({ lnaddress, onComplete }: UsePayment) => {
       }
 
       try {
-        // 1. Convertir monto fiat a satoshis usando Yadio
-        console.log(`Converting ${amount} ${settings.currency} to satoshis...`);
-        const satsAmount = await convertToSatoshis(amount, settings.currency);
-        setAmountInSats(satsAmount);
-        console.log(`Converted to ${satsAmount} satoshis`);
+        let finalSatsAmount: number;
+
+        if (isAmountPreConvertedToSats) {
+          // If the amount is already in SATs, use it directly
+          finalSatsAmount = amount;
+          console.log(`Using pre-converted amount: ${finalSatsAmount} satoshis`);
+        } else {
+          // Otherwise, convert from fiat to satoshis
+          console.log(`Converting ${amount} ${settings.currency} to satoshis...`);
+          finalSatsAmount = await convertToSatoshis(amount, settings.currency);
+          console.log(`Converted to ${finalSatsAmount} satoshis`);
+        }
+
+        setAmountInSats(finalSatsAmount); // Set the final calculated satoshi amount
+
+        if (finalSatsAmount <= 0) {
+          throw new Error('Cannot generate invoice for 0 or negative SATs.');
+        }
 
         // 2. Generar el comentario con los detalles de los productos
         let comment = `Payment for ${getCurrencySymbol()}${amount.toLocaleString()} ${settings.currency}`;
-
-        // Añadir detalles de productos si hay elementos en el carrito
-        // if (cart.length > 0 && products.length > 0) {
-        //   // Formato estructurado para análisis de datos: POS|TOTAL:[amount]|[item1:qty]|[item2:qty]|...
-        //   const itemsList = cart
-        //     .map((item) => {
-        //       const product = products.find((p) => p.id === item.id);
-        //       if (product) {
-        //         return `${product.name.replace(/[|:,]/g, '')}:${item.quantity}`;
-        //       }
-        //       return null;
-        //     })
-        //     .filter(Boolean);
-
-        //   comment = `LNPOS|TOTAL:${getCurrencySymbol()}${amount.toLocaleString()}${settings.currency}|${itemsList.join(
-        //     '|',
-        //   )}`;
-        // }
+        // If the original amount was already sats (from the tipping screen),
+        // you might want to adjust the comment to reflect that, or pass the original fiat amount too.
+        // For now, it will show the original "amount" parameter from the function.
 
         // 3. Generar factura Lightning usando LUD-16/LUD-21
-        console.log(`Generating Lightning invoice for ${satsAmount} sats...`);
+        console.log(`Generating Lightning invoice for ${finalSatsAmount} sats...`);
         const invoiceData = await generateLightningInvoice(
           String(lnaddress ? lnaddress : lightningAddress),
-          satsAmount,
+          finalSatsAmount, // Use the final calculated satoshi amount
           comment,
         );
 
@@ -99,7 +112,10 @@ export const usePayment = ({ lnaddress, onComplete }: UsePayment) => {
         setIsGenerating(false);
       }
     },
-    [lightningInvoice, paymentHash, isGenerating],
+    // FIX: Update dependencies. Remove lightningInvoice, paymentHash, isGenerating from deps
+    // as they are states managed within the useCallback, not external dependencies for its logic.
+    // Add settings.currency, lightningAddress, lnaddress.
+    [settings?.currency, lightningAddress, lnaddress, convertToSatoshis, getCurrencySymbol],
   );
 
   const resetPayment = useCallback(() => {
@@ -107,7 +123,7 @@ export const usePayment = ({ lnaddress, onComplete }: UsePayment) => {
     setVerifyUrl(null);
     setPaymentHash(null);
     setAmountInSats(null);
-    setIsGenerating(true);
+    setIsGenerating(true); // Should be true to indicate it's ready to generate again
     setError(null);
   }, []);
 
@@ -132,6 +148,9 @@ export const usePayment = ({ lnaddress, onComplete }: UsePayment) => {
           if (isActive) {
             onComplete();
           }
+          // FIX: Clear the interval and set isActive to false when settled
+          if (interval) clearTimeout(interval);
+          isActive = false;
           return; // Detener verificación
         }
       } catch (error) {
@@ -141,7 +160,7 @@ export const usePayment = ({ lnaddress, onComplete }: UsePayment) => {
         }
       }
 
-      // Continuar verificando si el pago no está confirmado
+      // FIX: Only set timeout if not settled and still active
       if (isActive) {
         interval = setTimeout(checkPayment, INTERVAL_MS);
       }

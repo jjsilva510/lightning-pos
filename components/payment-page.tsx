@@ -1,3 +1,4 @@
+// components/payment-page.tsx
 'use client';
 
 import { useState, useEffect, Suspense } from 'react';
@@ -20,8 +21,17 @@ import { PaymentError } from './payment/payment-error';
 export function PaymentPage() {
   const searchParams = useSearchParams();
 
-  const amount = searchParams.get('amount');
+  const amountSatsParam = searchParams.get('amountSats');
+  // FIX: Ensure parsedAmountSats is a number, defaulting to 0 if null/undefined/cannot be parsed
+  const parsedAmountSats = Number(amountSatsParam || '0'); // Convert and provide default '0' for Number()
+  // You might also explicitly check for NaN if you need to handle that specifically, e.g.,
+  // const parsedAmountSats = amountSatsParam ? Number(amountSatsParam) : 0;
+  // if (isNaN(parsedAmountSats)) parsedAmountSats = 0; // If you expect non-numeric input to be 0
+
   const lnaddress = searchParams.get('lnaddress');
+
+  // ADD THIS LOG: This confirms the value being used
+  console.log('PaymentPage: Received amountSats from URL (parsed):', parsedAmountSats);
 
   const { settings } = useSettings();
   const { convertCurrency } = useCurrencyConverter();
@@ -29,15 +39,14 @@ export function PaymentPage() {
   const { print } = usePrint();
 
   const handleCompletePayment = () => {
-    if (finalAmount > 0) {
-      // Cambiar estado
+    // FIX: Use parsedAmountSats consistently for total
+    if (parsedAmountSats > 0) {
       setPaymentStatus('success');
 
-      // Generar orden de impresión
       const printOrder = {
-        total: finalAmount,
-        currency: settings?.currency,
-        totalSats: convertCurrency(finalAmount, settings?.currency as AvailableCurrencies, 'SAT'),
+        total: parsedAmountSats, // This is the total in SATs
+        currency: settings?.currency, // This might be the original local currency
+        totalSats: parsedAmountSats, // This is already in SATs
         // items: cartItems.map((item) => ({
         //   name: item?.product?.name,
         //   price: item?.product?.price,
@@ -48,51 +57,58 @@ export function PaymentPage() {
       setPrintOrder(printOrder as any);
       print(printOrder as any);
 
-      // Limpiar carrito
       clearCart();
     }
   };
 
-  // Payment
+  // Payment hook: amountInSats from this hook can be number | null initially
   const { lightningInvoice, amountInSats, isGenerating, error, generatePayment, resetPayment } = usePayment({
     lnaddress: lnaddress as string,
     onComplete: handleCompletePayment,
   });
 
   const [paymentStatus, setPaymentStatus] = useState<'selecting' | 'pending' | 'success'>('selecting');
-  const [finalAmount, setFinalAmount] = useState(0);
   const [printOrder, setPrintOrder] = useState<PrintOrder | null>(null);
 
-  // Finalmente, actualizar la llamada a generatePayment
+  // Trigger payment generation
   useEffect(() => {
-    generatePayment(Number(amount), cart, products);
-  }, [amount, cart, products]);
-
-  // Auto-redirect si no hay Lightning Address del operador
-  useEffect(() => {
-    if (!isLoading && Number(amount) > 0) {
-      setFinalAmount(Number(amount));
-      setPaymentStatus('pending');
+    if (parsedAmountSats > 0 && !isNaN(parsedAmountSats)) {
+      // Now, this amount is already in satoshis, so tell the hook not to convert it again.
+      generatePayment(parsedAmountSats, cart, products, true);
     }
-  }, [isLoading, amount]);
+  }, [parsedAmountSats, cart, products, generatePayment]);
 
+  // THIS IS THE *ONLY* DECLARATION FOR retryGeneration THAT SHOULD BE PRESENT
   const retryGeneration = () => {
     resetPayment();
-    generatePayment(Number(amount));
+    // FIX: Ensure parsedAmountSats is passed as a number
+    // It should also pass the 'true' flag here, as it's the retry for the same pre-converted amount
+    generatePayment(parsedAmountSats, cart, products, true);
   };
+
+  // Auto-redirect or status update logic
+  useEffect(() => {
+    if (!isLoading && parsedAmountSats > 0 && !isNaN(parsedAmountSats) && paymentStatus === 'selecting') {
+      setPaymentStatus('pending');
+    }
+  }, [isLoading, parsedAmountSats, paymentStatus]);
 
   if (error) {
     return (
       <div className='w-full h-full bg-[#0F0F0F]'>
-        <PaymentError error={error} amount={Number(amount)} onRetry={retryGeneration} />
+        {/* FIX: Ensure amount prop is always a number */}
+        <PaymentError error={error} amount={parsedAmountSats} onRetry={retryGeneration} />
       </div>
     );
   }
 
-  if (isLoading) {
-    <div className='flex justify-center items-center w-screen h-screen'>
-      <LoadingSpinner />
-    </div>;
+  // Corrected placement for loading spinner return
+  if (isLoading || isGenerating) {
+    return (
+      <div className='flex justify-center items-center w-screen h-screen'>
+        <LoadingSpinner />
+      </div>
+    );
   }
 
   if (!isLoading && errorPos) {
@@ -112,13 +128,19 @@ export function PaymentPage() {
         {paymentStatus === 'pending' && (
           <PaymentView
             invoice={lightningInvoice as string}
-            amount={Number(amount)}
-            amountInSats={Number(amountInSats)}
+            // FIX: Ensure amount and amountInSats props are always numbers
+            // Use parsedAmountSats for the overall amount passed from the URL
+            amount={parsedAmountSats}
+            // Use amountInSats from the usePayment hook, providing a default 0 if null
+            amountInSats={amountInSats ?? 0}
             isLoading={isGenerating}
           />
         )}
 
-        {paymentStatus === 'success' && <PaymentSuccess amount={finalAmount} printOrder={printOrder} />}
+        {paymentStatus === 'success' && (
+          // FIX: Ensure amount prop is always a number
+          <PaymentSuccess amount={parsedAmountSats} printOrder={printOrder} />
+        )}
       </div>
     </Suspense>
   );

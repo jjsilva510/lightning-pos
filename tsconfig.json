@@ -22,6 +22,8 @@
         "name": "next"
       }
     ],
+    // ADD THIS LINE:
+    "baseUrl": ".", // <--- THIS IS THE MISSING LINE!
     "paths": {
       "@/*": [
         "./*"
