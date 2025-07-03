@@ -1,7 +1,7 @@
 // components/payment-page.tsx
 'use client';
 
-import { useState, useEffect, Suspense } from 'react';
+import { useState, useEffect, Suspense, useCallback } from 'react'; // <--- ADD useCallback
 import { useSearchParams } from 'next/navigation';
 
 import { usePOSData } from '@/hooks/use-pos-data';
@@ -22,36 +22,29 @@ export function PaymentPage() {
   const searchParams = useSearchParams();
 
   const amountSatsParam = searchParams.get('amountSats');
-  // FIX: Ensure parsedAmountSats is a number, defaulting to 0 if null/undefined/cannot be parsed
-  const parsedAmountSats = Number(amountSatsParam || '0'); // Convert and provide default '0' for Number()
-  // You might also explicitly check for NaN if you need to handle that specifically, e.g.,
-  // const parsedAmountSats = amountSatsParam ? Number(amountSatsParam) : 0;
-  // if (isNaN(parsedAmountSats)) parsedAmountSats = 0; // If you expect non-numeric input to be 0
+  const parsedAmountSats = Number(amountSatsParam || '0');
 
   const lnaddress = searchParams.get('lnaddress');
 
-  // ADD THIS LOG: This confirms the value being used
   console.log('PaymentPage: Received amountSats from URL (parsed):', parsedAmountSats);
 
   const { settings } = useSettings();
   const { convertCurrency } = useCurrencyConverter();
+  
+  console.log('DEBUG: Current currency setting from useSettings:', settings?.currency);
+
   const { products, cart, isLoading, error: errorPos, clearCart } = usePOSData();
   const { print } = usePrint();
 
-  const handleCompletePayment = () => {
-    // FIX: Use parsedAmountSats consistently for total
+  // WRAP handleCompletePayment IN useCallback
+  const handleCompletePayment = useCallback(() => {
     if (parsedAmountSats > 0) {
       setPaymentStatus('success');
 
       const printOrder = {
-        total: parsedAmountSats, // This is the total in SATs
-        currency: settings?.currency, // This might be the original local currency
-        totalSats: parsedAmountSats, // This is already in SATs
-        // items: cartItems.map((item) => ({
-        //   name: item?.product?.name,
-        //   price: item?.product?.price,
-        //   qty: item?.quantity,
-        // })),
+        total: parsedAmountSats,
+        currency: settings?.currency,
+        totalSats: parsedAmountSats,
       };
 
       setPrintOrder(printOrder as any);
@@ -59,7 +52,7 @@ export function PaymentPage() {
 
       clearCart();
     }
-  };
+  }, [parsedAmountSats, settings?.currency, print, clearCart]); // Add all dependencies
 
   // Payment hook: amountInSats from this hook can be number | null initially
   const { lightningInvoice, amountInSats, isGenerating, error, generatePayment, resetPayment } = usePayment({
@@ -73,18 +66,15 @@ export function PaymentPage() {
   // Trigger payment generation
   useEffect(() => {
     if (parsedAmountSats > 0 && !isNaN(parsedAmountSats)) {
-      // Now, this amount is already in satoshis, so tell the hook not to convert it again.
       generatePayment(parsedAmountSats, cart, products, true);
     }
   }, [parsedAmountSats, cart, products, generatePayment]);
 
-  // THIS IS THE *ONLY* DECLARATION FOR retryGeneration THAT SHOULD BE PRESENT
-  const retryGeneration = () => {
+  const retryGeneration = useCallback(() => { // Also wrap retryGeneration in useCallback
     resetPayment();
-    // FIX: Ensure parsedAmountSats is passed as a number
-    // It should also pass the 'true' flag here, as it's the retry for the same pre-converted amount
     generatePayment(parsedAmountSats, cart, products, true);
-  };
+  }, [parsedAmountSats, cart, products, generatePayment, resetPayment]);
+
 
   // Auto-redirect or status update logic
   useEffect(() => {
@@ -96,13 +86,11 @@ export function PaymentPage() {
   if (error) {
     return (
       <div className='w-full h-full bg-[#0F0F0F]'>
-        {/* FIX: Ensure amount prop is always a number */}
         <PaymentError error={error} amount={parsedAmountSats} onRetry={retryGeneration} />
       </div>
     );
   }
 
-  // Corrected placement for loading spinner return
   if (isLoading || isGenerating) {
     return (
       <div className='flex justify-center items-center w-screen h-screen'>
@@ -128,17 +116,14 @@ export function PaymentPage() {
         {paymentStatus === 'pending' && (
           <PaymentView
             invoice={lightningInvoice as string}
-            // FIX: Ensure amount and amountInSats props are always numbers
-            // Use parsedAmountSats for the overall amount passed from the URL
             amount={parsedAmountSats}
-            // Use amountInSats from the usePayment hook, providing a default 0 if null
             amountInSats={amountInSats ?? 0}
             isLoading={isGenerating}
+            onManualConfirm={handleCompletePayment} // Already here from previous step
           />
         )}
 
         {paymentStatus === 'success' && (
-          // FIX: Ensure amount prop is always a number
           <PaymentSuccess amount={parsedAmountSats} printOrder={printOrder} />
         )}
       </div>

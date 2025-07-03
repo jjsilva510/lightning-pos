@@ -2,7 +2,7 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-
+import { getCurrencySymbolForPay } from '@/utils/currency-utils';
 import { useSettings } from '@/hooks/use-settings';
 import { useLightningAuth } from '@/hooks/use-lightning-auth';
 import { extractPaymentHash } from '@/lib/lightning-utils';
@@ -81,7 +81,7 @@ export const usePayment = ({ lnaddress, onComplete }: UsePaymentOptions) => {
         }
 
         // 2. Generar el comentario con los detalles de los productos
-        let comment = `Payment for ${getCurrencySymbol()}${amount.toLocaleString()} ${settings.currency}`;
+        let comment = `Payment for ${getCurrencySymbolForPay(settings?.currency_paid || 'SAT')}${amount.toLocaleString()} ${settings.currency_paid}`;
         // If the original amount was already sats (from the tipping screen),
         // you might want to adjust the comment to reflect that, or pass the original fiat amount too.
         // For now, it will show the original "amount" parameter from the function.

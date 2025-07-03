@@ -57,7 +57,7 @@ export default function PaydeskClient({ lnaddress }: PaydeskClientProps) {
   }, [lnaddress, router, validateLightningAddress, login]); // Added dependencies for useEffect
 
   // Provide a default value for settings.currency if it's undefined
-  const currentCurrency = settings?.currency || 'USD'; // Or your default currency
+  const currentCurrency = settings?.currency || 'SATS'; // Or your default currency
   const value = Number(numpadData.intAmount[numpadData.usedCurrency] || 0);
   const amountInSats = convertCurrency(value, currentCurrency as AvailableCurrencies, 'SAT');
 

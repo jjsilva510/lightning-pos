@@ -7,12 +7,14 @@ import { AvailableCurrencies } from '@/types/config';
 interface Settings {
   currency: AvailableCurrencies;
   language: string;
+  currency_paid: AvailableCurrencies;
   operatorLightningAddress: string;
 }
 
 const defaultSettings: Settings = {
   currency: 'USD',
   language: 'EN',
+  currency_paid: 'SAT',
   operatorLightningAddress: '',
 };
 
@@ -122,26 +124,6 @@ export function useSettings() {
     [settings.currency],
   );
 
-  // Función para obtener el nombre completo de la moneda
-  const getCurrencyName = useCallback(
-    (currency?: string) => {
-      const curr = currency || settings.currency;
-      switch (curr) {
-        case 'SAT':
-          return 'Satoshis';
-        case 'USD':
-          return 'US Dollar';
-        case 'ARS':
-          return 'Argentine Peso';
-        case 'EUR':
-          return 'Euro';
-        default:
-          return 'US Dollar';
-      }
-    },
-    [settings.currency],
-  );
-
   // Función para obtener el nombre del idioma
   const getLanguageName = useCallback(
     (language?: string) => {
@@ -182,7 +164,6 @@ export function useSettings() {
     updateOperatorLightningAddress,
     resetSettings,
     getCurrencySymbol,
-    getCurrencyName,
     getLanguageName,
     validateLightningAddress,
     hasOperatorLightningAddress,

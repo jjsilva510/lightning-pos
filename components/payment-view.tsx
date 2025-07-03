@@ -38,7 +38,7 @@ export function PaymentView({ invoice, amount, amountInSats, isLoading }: Paymen
 
             <div className='text-3xl mb-2'>
               {getCurrencySymbol()}
-              <b>{new Intl.NumberFormat().format(amount)}</b> {settings.currency}
+              <b>{new Intl.NumberFormat().format(amount)}</b> {settings.currency} 
             </div>
 
             <div className='flex items-center gap-2 text-lg text-gray-600'>
